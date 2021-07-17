@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class ProductController extends Controller
 {
@@ -35,13 +36,8 @@ class ProductController extends Controller
             $data['warranty'] = $arr[0]->warranty;
             $data['id'] = $arr[0]->id;
             /* ************ product atrributes when edit */
-            $data['sku'] = "";
-            $data['mrp'] = "";
-            $data['price'] = "";
-            $data['qty'] = "";
-            $data['size'] = "";
-            $data['color'] = "";
-            $data['image'] = "";
+            $data['product_attributes'] = DB::table('product_attr')->where(['product_id' => $id])->get();
+            $data['product_images'] = DB::table('product_image')->where(['product_id' => $id])->get();
         } else {
             $data['categories_id'] = "";
             $data['slug'] = "";
@@ -55,56 +51,97 @@ class ProductController extends Controller
             $data['uses'] = "";
             $data['warranty'] = "";
             $data['id'] = "";
+
             /* ************ product atrributes when add */
-            $data['sku'] = "";
-            $data['mrp'] = "";
-            $data['price'] = "";
-            $data['qty'] = "";
-            $data['size'] = "";
-            $data['color'] = "";
-            $data['image'] = "";
+            $data['product_attributes'][0]['id'] = "";
+            $data['product_attributes'][0]['sku'] = "";
+            $data['product_attributes'][0]['mrp'] = "";
+            $data['product_attributes'][0]['price'] = "";
+            $data['product_attributes'][0]['qty'] = "";
+            $data['product_attributes'][0]['size'] = "";
+            $data['product_attributes'][0]['color'] = "";
+            $data['product_attributes'][0]['image'] = "";
+
+            /*product image */
+            $data['product_images'][0]['id']="";
+            $data['product_images'][0]['product_id']="";
+            $data['product_images'][0]['images']="";
             
         }
-        $data['categories'] = DB::table('categories')->where(['status' => 1])->get();//here model concept not used
+        $data['categories'] = DB::table('categories')->where(['status' => 1])->get(); //here model concept not used
         return view('admin.addProduct', $data);
     }
+
+
     //when submit then work here
     public function manageProduct(Request $request)
     {
-    //   try {
-         // return $request->post();   
+          try {
+       
         $model = new Product();
         $id = $request->post('id'); //get id from hidden input
-        if($id>0){
-            $image_validation="mimes:jpeg,jpg,png";//here image already present so not required
-        }else{
-            $image_validation="required|mimes:jpeg,jpg,png";
-        }
-        $request->validate([
-            'name' => 'required',
-            'image'=>$image_validation,
-            'slug' => 'required|unique:Products,slug,' . $id,
-            // 'category_slug' => 'required|unique:Products,category_slug'.$id,
-
-        ]);
+        $slug = $request->post('slug');
 
         if ($id > 0) {
-            $model->where(['id' => $id])->get();
-            // return Product::find($id);
+            $image_validation = "mimes:jpeg,jpg,png"; //here image already present so not required
             $msg = 'Product updated SucessFully';
+            $slug_validation='required|unique:products,slug,'.$request->post('id');
+     
+            // $m = $model->where(['slug' => $slug])->get();
+            // if ($m->count()) {
+            //     // echo "exist";
+            //     $message = "The slug has already been taken....";
+            //     $slug_validation="required";
+                
+            // } else {
+               
+            //     $slug_validation="required";
+            //     // echo "not exist you can edit";
+            // }
         } else {
-
+            $image_validation = "required|mimes:jpeg,jpg,png";
+            $slug_validation="required|unique:products,slug,";
             $msg = 'Product inserted SucessFully';
         }
-   
+        
+     
+
+        $request->validate([
+            'name' => 'required',
+            'image' => $image_validation,
+            'slug'=>$slug_validation, 
+            // 'category_slug' => 'required|unique:Products,category_slug'.$id,
+        ]);
+
         if ($request->hasfile('image')) {
-            $image = $request->file('image');
-            $ext = $image->extension();
+           $image_file = $request->file('image');
+          // $imageName = $image_file->getClientOriginalName();
+            // $image = $_FILES['image']['name'];
+            $ext =  $image_file->extension();
             $image_name = time() . '.' . $ext;
-            $image->storeAs('/public/media', $image_name);
+            $image_file->storeAs('/public/media', $image_name);
+           
             $model->image = $image_name;
-            
         }
+        else
+        {
+            $model->image = $request->post('currentimage');
+            // return $model->where(['id'=>$id])->get('image')[0]['image'];
+        }
+      
+
+        // store in form array
+        $pdattrid = $request->post('pdattrid');
+        $sku = $request->post('sku');
+        $mrp = $request->post('mrp');
+        $price = $request->post('price');
+        $qty = $request->post('qty');
+        $size = $request->post('size');
+        $color = $request->post('color');
+        $image_attr = $request->post('image_attr');
+
+
+
 
         $model->categories_id = $request->post('categories_id');
         $model->slug = $request->post('slug');
@@ -122,14 +159,38 @@ class ProductController extends Controller
 
         $model->save();
         $request->session()->flash('message', $msg);
+        foreach ($sku as $key => $value) {
+            $productAttr = [];
+            $productAttr['product_id'] = $model->id;
+            $productAttr['sku'] = $sku[$key];
+            $productAttr['image'] = "image";
+            $productAttr['mrp'] = $mrp[$key];
+            $productAttr['price'] = $price[$key];
+            $productAttr['qty'] = $qty[$key];
+            if ($size[$key] == "") {
+                $productAttr['size'] = "";
+            } else {
+                $productAttr['size'] = $size[$key];
+            }
+            if ($color[$key] == "") {
+                $productAttr['color'] = "";
+            } else {
+                $productAttr['color'] = $color[$key];
+            }
+            if ($pdattrid[$key] = !"") {
+                DB::table('product_attr')->where(['id' => $pdattrid[$key]])->update($productAttr);
+            } else {
+                DB::table('product_attr')->insert($productAttr);
+            }
+        }
         return redirect('admin/product');
-        // return view('admin.product');
-
-    //   } catch (\Throwable $th) {
-    //     //   echo '<pre>';
-    //       echo $th->getMessage();
-    //   }
         
+
+          } catch (\Throwable $th) {
+            //   echo '<pre>';
+              echo $th->getMessage();
+          }
+
     }
 
     public function deleteProduct(Request $request, $id)
@@ -138,6 +199,13 @@ class ProductController extends Controller
         $result->delete();
         $request->session()->flash('message', 'Product Deleted SucessFully');
         return redirect('admin/product');
+    }
+    public function delete_product_attributes(Request $request, $pdid, $pdattrid)
+    {
+        $result = DB::table('product_attr')->where(['id' => $pdattrid]);
+        $result->delete();
+        $request->session()->flash('message', 'ProductAttributes Deleted SucessFully');
+        return redirect('admin/product/addproduct/' . $pdid);
     }
     public function status(Request $request, $status, $id)
     {

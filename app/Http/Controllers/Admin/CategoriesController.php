@@ -36,8 +36,10 @@ class CategoriesController extends Controller
         }
         return view('admin.addcategories', $data);
     }
+    //when submit data
     public function manageCategories(Request $request)
     {
+        // return $request;
         $model = new Categories();
         $id = $request->post('id');
        

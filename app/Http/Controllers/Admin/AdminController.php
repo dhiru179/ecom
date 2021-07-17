@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Admin;
 use Illuminate\Http\Request;
+use App\CustomClass\Usefull;
 
 
 class AdminController extends Controller
@@ -17,6 +18,9 @@ class AdminController extends Controller
     public function index()
     {
         
+//         $x = new Usefull();
+// return $x->add(5,9);
+        // return var_dump($x);
         return view('admin.login');
     }
 
